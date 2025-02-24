@@ -26,6 +26,8 @@ struct User
 	double bias[BIASES_COUNT];
 	
 	User();
+	
+	double getImpact() const;
 };
 
 bool compareByFollowers(const User& userA, const User& userB);

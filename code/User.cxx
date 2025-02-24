@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "User.hxx"
 
 User::User()
@@ -10,6 +12,14 @@ User::User()
 	
 	for(int i = 0; i < BIASES_COUNT; i++)
 		SELF.bias[i] = 1.0 / BIASES_COUNT;
+}
+
+double User::getImpact() const
+{
+	double baseline = 1;
+	double prestige = std::log2(1 + SELF.years);
+	
+	return baseline + (SELF.tweets * prestige);
 }
 
 bool compareByFollowers(const User& userA, const User& userB)

@@ -1,13 +1,13 @@
-Finding the fewest edges to remove from a digraph to make it a DAG is an NP-Hard problem.
-
-Users:
+Users files:
 
 1: Same years & Same amount of tweets
 2: Different years & Same amount of tweets
 3: Same years & Different amount of tweets
 4: Different years & Different amount of tweets
 
-Connections:
+Connections files:
 
 1: DAG
 2: Non DAG
+
+Finding the fewest edges to remove from a digraph to make it a DAG is an NP-Hard problem.

@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <math.h>
 
 #include <sstream>
 
@@ -128,7 +127,7 @@ void Network::removeCycles(int source, set<int>& seen, set<int>& inTrace, vector
 		int followee = -1;
 		int follower = -1;
 		
-		int minInfluence = INF;
+		int minImpact = INF;
 		
 		int prev = source;
 		int curr = -1;
@@ -139,14 +138,14 @@ void Network::removeCycles(int source, set<int>& seen, set<int>& inTrace, vector
 		{
 			curr = trace[index];
 			
-			const User& user = SELF.users[prev];
+			double impact = SELF.users[prev].getImpact();
 			
-			if(user.tweets < minInfluence)
+			if(impact < minImpact)
 			{
 				followee = prev;
 				follower = curr;
 				
-				minInfluence = user.tweets;
+				minImpact = impact;
 			}
 			
 			prev = curr;
@@ -178,18 +177,14 @@ void Network::removeCycles(int source, set<int>& seen, set<int>& inTrace, vector
 	inTrace.erase(source);
 }
 
-void Network::computeBias(int userID, set<int>& processed)
+void Network::computeBias(int user, set<int>& processed)
 {
-	SELF.reportBiasComputationS(userID);
+	SELF.reportBiasComputationS(user);
 	
-	if(processed.contains(userID))
-	{
-		SELF.reportBiasComputationF(userID);
-		
+	if(processed.contains(user))
 		return;
-	}
 	
-	processed.insert(userID);
+	processed.insert(user);
 	
 	double total = 0;
 	double exposition[BIASES_COUNT];
@@ -197,37 +192,30 @@ void Network::computeBias(int userID, set<int>& processed)
 	for(int i = 0; i < BIASES_COUNT; i++)
 		exposition[i] = 0;
 	
-	for(int followeeID : SELF.followees[userID])
+	for(int followee : SELF.followees[user])
 	{
-		computeBias(followeeID, processed);
+		computeBias(followee, processed);
 		
-		const User& followee = SELF.users[followeeID];
-		
-		double weight = std::log2(1 + followee.years);
-		double baseline = 1;
-		
-		double influence = baseline + (followee.tweets * weight);
-		
-		total += influence;
+		double impact = SELF.users[followee].getImpact();
 		
 		for(int i = 0; i < BIASES_COUNT; i++)
-			exposition[i] += influence * followee.bias[i];
+			exposition[i] += impact * SELF.users[followee].bias[i];
+		
+		total += impact;
 	}
 	
-	SELF.reportBiasComputationF(userID);
+	SELF.reportBiasComputationF(user);
 	
 	if(total == 0)
 		return;
 	
-	User& user = SELF.users[userID];
-	
 	for(int i = 0; i < BIASES_COUNT; i++)
-		user.bias[i] = exposition[i] / total;
+		SELF.users[user].bias[i] = exposition[i] / total;
 	
 	double sum = 0;
 	
 	for(int i = 0; i < BIASES_COUNT; i++)
-		sum += user.bias[i];
+		sum += SELF.users[user].bias[i];
 	
 	assert(abs(1 - sum) <= 1e-10);
 }
