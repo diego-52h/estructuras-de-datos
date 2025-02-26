@@ -215,9 +215,6 @@ int main(int argc, char* args[])
 			
 			for(const vector<reference<User>>& component : SCComponents)
 			{
-				if(component.size() == 1)
-					continue;
-				
 				count++;
 				
 				out2 << "[" << count << "]" << '\n';
