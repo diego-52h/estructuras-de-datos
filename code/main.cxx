@@ -13,15 +13,21 @@
 
 using stream = std::fstream;
 
+const int TOP_SIZE = 10;
+
 const string LOG_FILE = "log.txt";
 const string OUT_FILE_1 = "biases.txt";
 const string OUT_FILE_2 = "components.txt";
 
 unordered_map<string, array<double, BIASES_COUNT>> presets = {
+	// For test datasets
+	
 	{"Iz", {1, 0, 0, 0}},
 	{"De", {0, 1, 0, 0}},
 	{"Ce", {0, 0, 1, 0}},
 	{"Li", {0, 0, 0, 1}},
+	
+	// For real dataset
 	
 	{"latercera", {0, 0, 1, 0}},
 	{"elmostrador", {0, 0, 0, 1}},
@@ -179,7 +185,7 @@ int main(int argc, char* args[])
 			
 			network.computeUsersBias(presetUsers);
 			
-			std::cout << "Bias computed in " << timer.count() << " [sec]" << '\n';
+			std::cout << "BIAS computed in " << timer.count() << " [sec]" << '\n';
 			
 			out1 << std::left;
 			out1 << std::fixed;
@@ -228,38 +234,47 @@ int main(int argc, char* args[])
 		
 		/* C */
 		{
-			vector<User> topA = network.getUsers();
-			vector<User> topB = network.getUsers();
+			const vector<User>& users = network.getUsers();
+			
+			std::priority_queue<User, std::vector<User>, function<bool(const User&, const User&)>> top1(compareByFollowers);
+			std::priority_queue<User, std::vector<User>, function<bool(const User&, const User&)>> top2(compareByFollowees);
 			
 			timer.restart();
 			
-			std::sort(topA.begin(), topA.end(), compareByFollowers);
-			std::sort(topB.begin(), topB.end(), compareByFollowees);
+			for(const User& user : users)
+			{
+				top1.push(user);
+				top2.push(user);
+				
+				if(top1.size() > TOP_SIZE)
+					top1.pop();
+				
+				if(top2.size() > TOP_SIZE)
+					top2.pop();
+			}
 			
-			std::cout << "Top computed in " << timer.count() << " [sec]" << '\n';
-			
-			int count = std::min(10, (int) topA.size());
+			std::cout << "TOP computed in " << timer.count() << " [sec]" << '\n';
 			
 			std::cout << '\n';
 			std::cout << "TOP INFLUENTIAL:" << '\n';
 			std::cout << '\n';
 			
-			for(int i = 0; i < count; i++)
+			while(!top1.empty())
 			{
-				User& user = topA[(topA.size() - 1) - i];
+				User user = top1.top(); top1.pop();
 				
-				std::cout << "[" << (i + 1) << "] " << user.name << ": " << user.followerCount << '\n';
+				std::cout << "[" << (top1.size() + 1) << "] " << user.name << ": " << user.followerCount << '\n';
 			}
 			
 			std::cout << '\n';
 			std::cout << "TOP INFLUENCEABLE:" << '\n';
 			std::cout << '\n';
 			
-			for(int i = 0; i < count; i++)
+			while(!top2.empty())
 			{
-				User& user = topB[(topB.size() - 1) - i];
+				User user = top2.top(); top2.pop();
 				
-				std::cout << "[" << (i + 1) << "] " << user.name << ": " << user.followeeCount << '\n';
+				std::cout << "[" << (top2.size() + 1) << "] " << user.name << ": " << user.followeeCount << '\n';
 			}
 		}
 		
