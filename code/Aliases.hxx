@@ -31,6 +31,8 @@ template<typename T, int S> using array = std::array<T, S>;
 template<typename T1, typename T2> using map = std::map<T1, T2>;
 template<typename T1, typename T2> using unordered_map = std::unordered_map<T1, T2>;
 
+template<typename T> using function = std::function<T>;
+
 template<typename T> using pointer = std::unique_ptr<T>;
 template<typename T> using reference = std::reference_wrapper<T>;
 

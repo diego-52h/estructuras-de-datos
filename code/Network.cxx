@@ -1,9 +1,12 @@
 #include <assert.h>
 
+#include <algorithm>
 #include <sstream>
 
 #include "Logger.hxx"
 #include "Network.hxx"
+
+#define RUN_PHASE2
 
 Network::Network(pointer<Logger> logger) : logger(std::move(logger))
 {
@@ -42,28 +45,84 @@ const vector<User>& Network::getUsers()
 
 void Network::computeUsersBias(const vector<string>& presetUsers)
 {
+	/* PHASE 1 */
+	
 	set<int> processed;
 	
-	for(string name : presetUsers)
+	vector<set<int>> auxFollowers1 = SELF.followers;
+	vector<set<int>> auxFollowees1 = SELF.followees;
+	
+	for(string userName : presetUsers)
 	{
-		if(!SELF.nameToID.contains(name))
+		if(!SELF.nameToID.contains(userName))
 			continue;
 		
-		int ID = SELF.nameToID.at(name);
+		int user = SELF.nameToID.at(userName);
 		
-		processed.insert(ID);
+		processed.insert(user);
+		
+		set<int> userFollowees = SELF.followees[user];
+		
+		for(int followee : userFollowees)
+		{
+			SELF.followers[followee].erase(user);
+			SELF.followees[user].erase(followee);
+			
+			SELF.reportConnectionRemoval(followee, user);
+		}
 	}
 	
-	vector<set<int>> auxFollowers = SELF.followers;
-	vector<set<int>> auxFollowees = SELF.followees;
+	vector<set<int>> auxFollowers2 = SELF.followers;
+	vector<set<int>> auxFollowees2 = SELF.followees;
 	
 	SELF.removeCycles();
 	
-	for(int i = 0; i < SELF.users.size(); i++)
-		SELF.computeBias(i, processed);
+	for(int user = 0; user < SELF.users.size(); user++)
+		SELF.computeBiasDFS(user, processed);
 	
-	SELF.followers = auxFollowers;
-	SELF.followees = auxFollowees;
+	/* PHASE 2 */
+	
+	#ifdef RUN_PHASE2
+	
+	SELF.followers = auxFollowers2;
+	SELF.followees = auxFollowees2;
+	
+	static const int THRESHOLD = 1e-3;
+	
+	std::priority_queue<std::pair<double, int>> remaining;
+	
+	for(int user = 0; user < SELF.users.size(); user++)
+		remaining.push({0, user});
+	
+	while(!remaining.empty())
+	{
+		const auto [x, user] = remaining.top(); remaining.pop();
+		
+		double prev[BIASES_COUNT];
+		double diff[BIASES_COUNT];
+		{
+			for(int i = 0; i < BIASES_COUNT; i++)
+				prev[i] = SELF.users[user].bias[i];
+			
+			SELF.computeBias(user);
+			
+			for(int i = 0; i < BIASES_COUNT; i++)
+				diff[i] = std::abs(prev[i] - SELF.users[user].bias[i]);
+		}
+		
+		double difference = *std::max_element(diff, diff + BIASES_COUNT); // infinite norm of diff
+		
+		if(difference > THRESHOLD)
+		{
+			for(int followee : SELF.followees[user])
+				remaining.push({difference, followee});
+		}
+	}
+	
+	#endif
+	
+	SELF.followers = auxFollowers1;
+	SELF.followees = auxFollowees1;
 }
 
 vector<vector<reference<User>>> Network::getSCComponents()
@@ -177,7 +236,42 @@ void Network::removeCycles(int source, set<int>& seen, set<int>& inTrace, vector
 	inTrace.erase(source);
 }
 
-void Network::computeBias(int user, set<int>& processed)
+void Network::computeBias(int user)
+{
+	double total = 0;
+	double exposition[BIASES_COUNT];
+	{
+		for(int i = 0; i < BIASES_COUNT; i++)
+			exposition[i] = 0;
+		
+		for(int followee : SELF.followees[user])
+		{
+			double impact = SELF.users[followee].getImpact();
+			
+			for(int i = 0; i < BIASES_COUNT; i++)
+				exposition[i] += impact * SELF.users[followee].bias[i];
+			
+			total += impact;
+		}
+	}
+	
+	if(total == 0)
+		return;
+	
+	for(int i = 0; i < BIASES_COUNT; i++)
+		SELF.users[user].bias[i] = exposition[i] / total;
+	
+	/* VALIDATE */
+	
+	double sum = 0;
+	
+	for(int i = 0; i < BIASES_COUNT; i++)
+		sum += SELF.users[user].bias[i];
+	
+	assert(abs(1 - sum) <= 1e-10);
+}
+
+void Network::computeBiasDFS(int user, set<int>& processed)
 {
 	SELF.reportBiasComputationS(user);
 	
@@ -186,38 +280,12 @@ void Network::computeBias(int user, set<int>& processed)
 	
 	processed.insert(user);
 	
-	double total = 0;
-	double exposition[BIASES_COUNT];
-	
-	for(int i = 0; i < BIASES_COUNT; i++)
-		exposition[i] = 0;
-	
 	for(int followee : SELF.followees[user])
-	{
-		computeBias(followee, processed);
-		
-		double impact = SELF.users[followee].getImpact();
-		
-		for(int i = 0; i < BIASES_COUNT; i++)
-			exposition[i] += impact * SELF.users[followee].bias[i];
-		
-		total += impact;
-	}
+		computeBiasDFS(followee, processed);
+	
+	computeBias(user);
 	
 	SELF.reportBiasComputationF(user);
-	
-	if(total == 0)
-		return;
-	
-	for(int i = 0; i < BIASES_COUNT; i++)
-		SELF.users[user].bias[i] = exposition[i] / total;
-	
-	double sum = 0;
-	
-	for(int i = 0; i < BIASES_COUNT; i++)
-		sum += SELF.users[user].bias[i];
-	
-	assert(abs(1 - sum) <= 1e-10);
 }
 
 void Network::orderDFS(int source, set<int>& seen)

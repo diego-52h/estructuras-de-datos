@@ -236,8 +236,8 @@ int main(int argc, char* args[])
 		{
 			const vector<User>& users = network.getUsers();
 			
-			std::priority_queue<User, std::vector<User>, function<bool(const User&, const User&)>> top1(compareByFollowers);
-			std::priority_queue<User, std::vector<User>, function<bool(const User&, const User&)>> top2(compareByFollowees);
+			std::priority_queue<User, vector<User>, function<bool(const User&, const User&)>> top1(compareByFollowers);
+			std::priority_queue<User, vector<User>, function<bool(const User&, const User&)>> top2(compareByFollowees);
 			
 			timer.restart();
 			

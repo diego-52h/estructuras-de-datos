@@ -24,10 +24,10 @@ double User::getImpact() const
 
 bool compareByFollowers(const User& userA, const User& userB)
 {
-	return userA.followerCount < userB.followerCount;
+	return userA.followerCount > userB.followerCount;
 }
 
 bool compareByFollowees(const User& userA, const User& userB)
 {
-	return userA.followeeCount < userB.followeeCount;
+	return userA.followeeCount > userB.followeeCount;
 }

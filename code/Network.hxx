@@ -35,7 +35,8 @@ class Network
 		
 		stack<int> getReversePostorder();
 		
-		void computeBias(int userID, set<int>& processed);
+		void computeBias(int user);
+		void computeBiasDFS(int user, set<int>& processed);
 		
 		void removeCycles();
 		void removeCycles(int source, set<int>& seen, set<int>& inTrace, vector<int>& trace);
